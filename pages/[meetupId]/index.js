@@ -1,32 +1,70 @@
+import { MongoClient, ObjectId } from "mongodb"
 import { Fragment } from "react"
-
+import Head from "next/head"
 import MeetupDetail from "../../components/meetups/MeetupDetail"
 
-function MeetupDetails() {
-  const ref = useRef(initialValue)
-
-
+function MeetupDetails(props) {
   return (
-    <MeetupDetail
-      image="https://storage.googleapis.com/stateless-thedailyfandom-org/2020/05/b346d487-2d9ccc4ddb63faf997d3a79260f12b07.jpeg"
-      title="The first crewmate"
-      address="Some address"
-      description="Sample"
-    />
+    <Fragment>
+      <Head>
+        <title>{props.meetupData.title}</title>
+        <meta name="description" content={props.meetupData.description} />
+      </Head>
+      <MeetupDetail
+        image={props.meetupData.image}
+        title={props.meetupData.title}
+        address={props.meetupData.address}
+        description={props.meetupData.description}
+      />
+    </Fragment>
   )
 }
 
-export async function getStaticProps() {
+export async function getStaticPaths() {
+  const client = await MongoClient.connect(
+    "mongodb+srv://marco123:marco123@mynote.wabqn.mongodb.net/meetups?retryWrites=true&w=majority"
+  )
+  const db = client.db()
+
+  const meetupsCollection = db.collection("meetups")
+
+  const meetups = await meetupsCollection.find({}, { _id: 1 }).toArray()
+
+  client.close()
+  return {
+    fallback: true,
+    paths: meetups.map(meetup => ({
+      params: { meetupId: meetup._id.toString() }
+    }))
+  }
+}
+
+export async function getStaticProps(context) {
   // fetch data for a single meetup
+
+  const meetupId = context.params.meetupId
+
+  const client = await MongoClient.connect(
+    "mongodb+srv://marco123:marco123@mynote.wabqn.mongodb.net/meetups?retryWrites=true&w=majority"
+  )
+  const db = client.db()
+
+  const meetupsCollection = db.collection("meetups")
+
+  const selectedMeetup = await meetupsCollection.findOne({
+    _id: ObjectId(meetupId)
+  })
+
+  client.close()
 
   return {
     props: {
       meetupData: {
-        image: "https://storage.googleapis.com/stateless-thedailyfandom-org/2020/05/b346d487-2d9ccc4ddb63faf997d3a79260f12b07.jpeg",
-        id: "m1",
-        title: "The first crewmate",
-        address: "Some address",
-        description: "Sample"
+        id: selectedMeetup._id.toString(),
+        title: selectedMeetup.title,
+        address: selectedMeetup.address,
+        image: selectedMeetup.image,
+        description: selectedMeetup.description
       }
     }
   }
